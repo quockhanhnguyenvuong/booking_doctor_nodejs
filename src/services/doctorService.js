@@ -140,6 +140,49 @@ let saveDetailInforDoctor = (inputData) => {
   });
 };
 
+let bulkCreateScheduleService = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data.arrSchedule || !data.doctorId || !data.formatedDate) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let schedule = data.arrSchedule;
+        if (schedule && schedule.length > 0) {
+          schedule = schedule.map((item) => {
+            item.maxNumber = MAX_NUMBER_SCHEDULE;
+            return item;
+          });
+        }
+        // get all existing data
+        let existing = await db.Schedule.findAll({
+          where: { doctorId: data.doctorId, date: data.formatedDate },
+          attributes: ["timeType", "date", "doctorId", "maxNumber"],
+          raw: true,
+        });
+
+        // compare different
+        let toCreate = _.differenceWith(schedule, existing, (a, b) => {
+          return a.timeType === b.timeType && +a.date === +b.date;
+        });
+
+        //create data
+        if (toCreate && toCreate.length > 0) {
+          await db.Schedule.bulkCreate(toCreate);
+        }
+        resolve({
+          errCode: 0,
+          errMessage: "Okay",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 //get detail doctor by id
 let getDetailDoctorService = (inpuId) => {
   return new Promise(async (resolve, reject) => {
@@ -212,48 +255,7 @@ let getDetailDoctorService = (inpuId) => {
   });
 };
 
-let bulkCreateScheduleService = (data) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      if (!data.arrSchedule || !data.doctorId || !data.formatedDate) {
-        resolve({
-          errCode: 1,
-          errMessage: "Missing required parameter!",
-        });
-      } else {
-        let schedule = data.arrSchedule;
-        if (schedule && schedule.length > 0) {
-          schedule = schedule.map((item) => {
-            item.maxNumber = MAX_NUMBER_SCHEDULE;
-            return item;
-          });
-        }
-        // get all existing data
-        let existing = await db.Schedule.findAll({
-          where: { doctorId: data.doctorId, date: data.formatedDate },
-          attributes: ["timeType", "date", "doctorId", "maxNumber"],
-          raw: true,
-        });
 
-        // compare different
-        let toCreate = _.differenceWith(schedule, existing, (a, b) => {
-          return a.timeType === b.timeType && +a.date === +b.date;
-        });
-
-        //create data
-        if (toCreate && toCreate.length > 0) {
-          await db.Schedule.bulkCreate(toCreate);
-        }
-        resolve({
-          errCode: 0,
-          errMessage: "Okay",
-        });
-      }
-    } catch (e) {
-      reject(e);
-    }
-  });
-};
 
 let getScheduleByDate = (doctorId, date) => {
   return new Promise(async (resolve, reject) => {
