@@ -492,6 +492,78 @@ let getListPatientForDoctor = (doctorId, date) => {
   });
 };
 
+// let sendRemedy = (data) => {
+//   return new Promise(async (resolve, reject) => {
+//     // console.log("send remedy", data);
+//     try {
+//       if (!data.email || !data.doctorId || !data.patientId) {
+//         resolve({
+//           errCode: 1,
+//           errMessage: "Missing required parrameter",
+//         });
+//       } else {
+//         //Update patient status
+//         let appointment = await db.Booking.findOne({
+//           where: {
+//             doctorId: data.doctorId,
+//             patientId: data.patientId,
+//             // timeType: data.timeType,
+//             statusId: "S2",
+//           },
+//           raw: false,
+//         });
+
+//         if (appointment) {
+//           appointment.statusId = "S3";
+//           await appointment.save();
+//         }
+//         //send email remedy
+//         await emailServices.sendAttachmentRemedy(data);
+
+//         resolve({
+//           errCode: 0,
+//           errMessage: "OK",
+//         });
+//       }
+//     } catch (e) {
+//       reject(e);
+//     }
+//   });
+// };
+
+let getConfirm = (data) => {
+  return new Promise(async (resolve, reject) => {
+    console.log(data);
+    try {
+      if (!data.doctorId || !data.patientId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parrameter",
+        });
+      } else {
+        let appointment = await db.Booking.findOne({
+          where: {
+            doctorId: data.doctorId,
+            patientId: data.patientId,
+            statusId: "S3",
+          },
+          raw: false,
+        });
+        if (appointment) {
+          appointment.statusId = "S5";
+          await appointment.save();
+        }
+        resolve({
+          errCode: 0,
+          errMessage: "OK",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 let sendRemedy = (data) => {
   return new Promise(async (resolve, reject) => {
     // console.log("send remedy", data);
@@ -520,38 +592,6 @@ let sendRemedy = (data) => {
         //send email remedy
         await emailServices.sendAttachmentRemedy(data);
 
-        resolve({
-          errCode: 0,
-          errMessage: "OK",
-        });
-      }
-    } catch (e) {
-      reject(e);
-    }
-  });
-};
-let getConfirm = (data) => {
-  return new Promise(async (resolve, reject) => {
-    console.log(data);
-    try {
-      if (!data.doctorId || !data.patientId) {
-        resolve({
-          errCode: 1,
-          errMessage: "Missing required parrameter",
-        });
-      } else {
-        let appointment = await db.Booking.findOne({
-          where: {
-            doctorId: data.doctorId,
-            patientId: data.patientId,
-            statusId: "S3",
-          },
-          raw: false,
-        });
-        if (appointment) {
-          appointment.statusId = "S5";
-          await appointment.save();
-        }
         resolve({
           errCode: 0,
           errMessage: "OK",
