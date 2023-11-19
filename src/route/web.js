@@ -28,6 +28,10 @@ let initWebRoutes = (app) => {
   router.post("/api/send-remedy", doctorController.sendRemedy);
   router.post("/api/send-refuse", doctorController.sendRefuse);
   router.post("/api/get-confirm", doctorController.getConfirm);
+
+  router.post("/api/check-email", userController.handleCheckAccount);
+  router.post("/api/check-OTP-reset-Password", userController.handleResetPassword);
+
 };
 
 module.exports = initWebRoutes;

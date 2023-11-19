@@ -44,6 +44,7 @@ module.exports = (sequelize, DataTypes) => {
       image: DataTypes.STRING,
       roleID: DataTypes.STRING,
       positionID: DataTypes.STRING,
+      code: DataTypes.STRING,
     },
     {
       sequelize,

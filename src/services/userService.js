@@ -1,5 +1,8 @@
 import db from "../models/index";
 import bcrypt from "bcryptjs";
+import emailServices from "./emailServices";
+import nodemailer from "nodemailer";
+import { trim } from "lodash";
 
 const salt = bcrypt.genSaltSync(10);
 
@@ -69,6 +72,24 @@ let checkUserEmail = (userEmail) => {
     try {
       let user = await db.User.findOne({
         where: { email: userEmail },
+      });
+      if (user) {
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+//check code OTP 
+let checkUserCode = (OTP, userEmail) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let user = await db.User.findOne({
+        where: { code: OTP, email: userEmail },
       });
       if (user) {
         resolve(true);
@@ -262,6 +283,166 @@ let getAllCodeService = (typeInput) => {
   });
 };
 
+ //mã OTP ramdom
+ const OTP = Math.floor(100000 + Math.random() * 900000);
+
+let checkAccountUser = (data) => {
+  return new Promise(async (resolve, reject) => {
+    console.log("data email",data.email); 
+    try {
+      let check = await checkUserEmail(data.email);
+      if (check === true) {
+        //send email remedy
+        await sendEmailGetPassword(data);
+
+        //update mã OTP lên data
+        await updateUserCode(OTP, data.email);
+        resolve({
+          errCode: 0,
+          message: "OK",
+        });
+      } else {
+        resolve({
+          errCode: 1,
+          message: "The email you entered dosen't exist in the system!!!",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+//Gửi email lấy code để đổi mk
+let sendEmailGetPassword = async (dataSend) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // create reusable transporter object using the default SMTP transport
+      let transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_APP, // generated ethereal user
+          pass: process.env.EMAIL_APP_PASSWORD, // generated ethereal password
+        },
+      });
+      
+      // send mail with defined transport object
+      let info = await transporter.sendMail({
+        from: '"System Booking A Medical Appointment " <bookingdoctor3@gmail.com>', // sender address
+        to: dataSend.email, // list of receivers
+        subject: "Reset Password System Booking A Medical Appointment", // Subject line
+        html: getBodyHTMLEmailCode(dataSend),
+      });
+      console.log("Sending email end....");
+      console.log("email: ", dataSend.email)
+      console.log("OTP (email): ", OTP);
+      resolve(true);
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+
+//body mail gửi code reset password
+let getBodyHTMLEmailCode = (dataSend) => {
+  let result = "";
+  result = `
+    <h3>Xin chào! </h3>
+    <p>Bạn đang thực hiện xin cấp lại mật khẩu đăng nhập cổng giao dịch điện tử System Booking A Medical Appointment cho tài khoản ${dataSend.email}</p>
+    <p>Đây là mã phê duyệt cho tài khoản của bạn: OTP - <b style="color:green">${OTP}</b> </p>
+    <p> <small> (<b style="color:red">*</b>) Lưu ý: Mã OTP chỉ có giá trị trong vòng 5 phút.</small> </p>
+    <div>Nếu bạn không phải là người gửi yêu cầu này, hãy đổi mật khẩu tài khoản ngay lập tức để tránh việc bị truy cập trái phép.</div>
+
+    <div>Xin chân thành cảm ơn!</div>
+  `; // html body
+  return result;
+};
+
+//update mã OTP lên data
+const updateUserCode = async (code,email) =>{
+  try{
+      await db.User.update(
+        {code: code,
+          // createdAt:Date.now(),
+          // expiryAt:Date.now() + 12000,
+        }, 
+        {
+          where: {email: email.trim() }
+        }
+      )
+  }catch (error){
+      console.log("error: ", error)
+  }
+}
+
+let handleResetPassword = (data) => {
+  return new Promise(async (resolve, reject) => {
+    console.log("data OTP",data.code); 
+    try {
+      let check = await checkUserCode(data.code, data.email);
+      
+      if (check === true) {
+        console.log("mã OTP đúng: ", data.code);
+        console.log("email đúng: ", data.email);
+
+        //update password
+        await resetUserPassword(data);
+
+        resolve({
+          errCode: 0,
+          message: "Mã OTP đúng",
+        });
+      } else {
+        resolve({
+          errCode: 1,
+          message: "Code OTP Wrong!!!",
+          
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+//update password
+let resetUserPassword = (data) => {
+  return new Promise(async (resolve, reject) => {
+    let newPassword = await hashUserPassword(data.newPassword);
+    try {
+      if (!data.email) {
+        resolve({
+          errCode: 2,
+          message: "Missing requied parameters!",
+        });
+      }
+      let user = await db.User.findOne({
+        where: { email: data.email },
+        raw: false,
+      });
+      if (user) {
+        user.password = newPassword;
+        console.log("hash password: ",newPassword)
+        await user.save();
+        resolve({
+          errCode: 0,
+          message: "Update the user succeeds!",
+        });
+      } else {
+        resolve({
+          errCode: 1,
+          errMessage: "User is not found!",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 module.exports = {
   handleUserLogin: handleUserLogin,
   getAllUsers: getAllUsers,
@@ -270,4 +451,8 @@ module.exports = {
   updateUserData: updateUserData,
   getAllCodeService: getAllCodeService,
   createNewPasswordService: createNewPasswordService,
+  checkAccountUser: checkAccountUser,
+  updateUserCode: updateUserCode,
+  handleResetPassword: handleResetPassword,
+  resetUserPassword: resetUserPassword,
 };
